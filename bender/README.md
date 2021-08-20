@@ -1,4 +1,4 @@
-*Bender
+# Bender
 
 Binder is used for all my media needs. It run's the following docker containers:
 1. Emby (**Best media software**)

@@ -1,0 +1,338 @@
+version: "3.6"
+services: 
+# Admin Tools
+  portainer:
+    image: portainer/portainer
+    container_name: portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${USERDIR}/docker/portainer/data:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  watchtower:
+    container_name: watchtower
+    restart: unless-stopped
+    image: v2tec/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 0 4 * * *" --cleanup
+  heimdall:
+    image: linuxserver/heimdall
+    container_name: heimdall
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${USERDIR}/docker/heimdall:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8078:80
+    restart: unless-stopped
+
+# Web Services
+  letsencrypt:
+    image: linuxserver/swag:latest
+    container_name: letsencrypt
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - URL=orh.media
+      - SUBDOMAINS=wildcard
+      - VALIDATION=dns
+      - DNSPLUGIN=cloudflare #optional
+      - EMAIL=klrobinson@gmail.com #optional
+      - DHLEVEL=2048 #optional
+      - ONLY_SUBDOMAINS=false #optional
+      # - EXTRA_DOMAINS=mc.media,mcmedia.media,mcmedia.tech,mediacowboy.tech,orh.wiki
+      - STAGING=false #optional
+    volumes:
+      - ${USERDIR}/docker/letsencrypt:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 443:443
+      - 80:80 #optional
+    restart: unless-stopped
+    depends_on:
+      - portainer
+      - emby
+  authelia:
+    image: authelia/authelia
+    container_name: authelia
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - 9091:9091
+    volumes:
+      - ${USERDIR}/docker/authelia:/config
+    restart: unless-stopped
+# Media Server
+  emby:
+    image: emby/embyserver:latest
+    container_name: "emby"
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /mnt/media:/media
+      - ${USERDIR}/docker/emby:/config
+      - /mnt/misc:/Misc
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /mnt/emby:/emby
+    devices:
+        - /dev/dri/renderD128:/dev/dri/renderD128
+    environment:
+      - UID=${PUID}
+      - GID=${PGID}
+      - GIDLIST=44
+      - TZ=${TZ}
+  # emby-beta:
+    # image: "emby/embyserver:beta"
+    # container_name: "emby-beta"
+    # devices:
+      # - /dev/dri/renderD128:/dev/dri/renderD128
+    # volumes:
+      # - /mnt/media:/media
+      # - ${USERDIR}/docker/emby-beta:/config
+      # - /mnt/misc:/Misc
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
+      # - /mnt/emby/emby-beta:/emby
+    # network_mode: host
+    # restart: unless-stopped
+    # environment:
+      # - UID=${PUID}
+      # - GID=${PGID}
+      # - GIDLIST=44
+      # - TZ=${TZ}
+  xteve:
+    image: tnwhitwell/xteve:latest
+    container_name: xteve
+    ports:
+      - "34400:34400"
+    volumes:
+      - ${USERDIR}/docker/xteve:/config
+      - ${USERDIR}/docker/xteve/tmp:/tmp/xteve
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    environment:
+      - UID=${PUID}
+      - GID=${PGID}
+      - TZ=${TZ}
+
+# Downloading Clients
+  sabnzbd:
+    image: "linuxserver/sabnzbd"
+    container_name: "sabnzbd"
+    volumes:
+      - ${USERDIR}/docker/sabnzbd:/config
+      #- ${USERDIR}/docker/mp4_automator:/mp4_automator
+      - /mnt/misc/downloads:/downloads
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # MP4 Automator
+      - ${USERDIR}/docker/sma:/usr/local/sma/config   
+    ports:
+      - "8070:8080"
+    restart: unless-stopped
+    devices:
+        - /dev/dri/renderD128:/dev/dri/renderD128
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - GIDLIST=44
+      - TZ=${TZ}  
+      - DOCKER_MODS=mdhiggins/sma-mod:latest
+  deluge:
+    image: "linuxserver/deluge:145"
+    container_name: "deluge"
+    volumes:
+      - ${USERDIR}/docker/deluge:/config
+      - /mnt/misc/downloads:/downloads
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # MP4 Automator
+      # - ${USERDIR}/docker/sma:/usr/local/sma/config
+    network_mode: host
+    # ports:
+      # - "1025:1025"
+      # - "53160:53160"
+      # - "8081:8112"
+      # - "58846:58846" 
+      
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ} 
+      # - DOCKER_MODS=mdhiggins/sma-mod:latest
+# Arr's
+  sonarr:
+    container_name: "sonarr"
+    image: ghcr.io/linuxserver/sonarr
+    volumes:
+      - ${USERDIR}/docker/sonarr:/config
+      - /mnt/misc/downloads:/downloads
+      - /mnt/misc/Recyle Bin/Sonarr:/Recyle Bin
+      - /mnt/media/TV:/tv
+      - /mnt/media/Anime TV:/anime tv
+      - /mnt/media/Ended TV:/ended tv
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      #MP4 Automator
+      - ${USERDIR}/docker/sma:/usr/local/sma/config
+      #Backup
+      - /mnt/misc/backups/arrs/Sonarr:/Backup
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    ports:
+      - "8072:8989"
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - GIDLIST=44
+      - TZ=${TZ}  
+      - DOCKER_MODS=mdhiggins/sma-mod:latest
+  radarr:
+    container_name: "radarr"
+    image: linuxserver/radarr
+    volumes:
+      - ${USERDIR}/docker/radarr:/config
+      - /mnt/misc/downloads:/downloads
+      - /mnt/misc/Recyle Bin/Radarr:/Recyle Bin
+      - /mnt/media/Movies:/movies
+      - /mnt/media/Anime Movies:/anime movies
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # MP4 Automator
+      - ${USERDIR}/docker/sma:/usr/local/sma/config
+      #Backup
+      - /mnt/misc/backups/arrs/Radarr:/Backup
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    ports:
+      - "8073:7878"
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - GIDLIST=44
+      - TZ=${TZ}  
+      - DOCKER_MODS=mdhiggins/sma-mod:latest
+  lidarr:
+    image: "linuxserver/lidarr"
+    container_name: "lidarr"
+    volumes:
+      - ${USERDIR}/docker/lidarr:/config
+      - /mnt/misc/downloads:/downloads
+      - /mnt/misc/Recyle Bin/Lidarr:/Recyle Bin
+      - /mnt/media/Music:/music
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      #Backup
+      - /mnt/misc/backups/arrs/Lidarr:/Backup
+    ports:
+      - "8074:8686" 
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  readarr:
+    image: "linuxserver/readarr:nightly"
+    container_name: readarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${USERDIR}/docker/readarr:/config
+      - /mnt/media/Books:/books #optional
+      - /mnt/media/Audiobooks:/audiobooks #optional
+      - /mnt/misc/downloads:/downloads #optional
+      - /mnt/misc/Recyle Bin/Lidarr:/Recyle Bin
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      #Backup
+      - /mnt/misc/backups/arrs/Readarr:/Backup
+    ports:
+      - 8092:8787
+    restart: unless-stopped
+  prowlarr:
+    image: ghcr.io/linuxserver/prowlarr:develop
+    container_name: prowlarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}  
+    volumes:
+      - ${USERDIR}/docker/prowlarr:/config
+      #Backup
+      - /mnt/misc/backups/arrs/Prowlarr:/Backup
+    ports:
+      - 8093:9696
+    restart: unless-stopped
+  ombi:
+    image: "linuxserver/ombi:latest"
+    container_name: "ombi"
+    volumes:
+      - ${USERDIR}/docker/ombi:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8076:3579 
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  wiki:
+    image: "mazzolino/tiddlywiki"
+    container_name: "tiddlywiki"
+    restart: unless-stopped
+    volumes:
+      - ${USERDIR}/docker/tiddlywiki:/var/lib/tiddlywiki
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "8091:8080"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ} 
+# Gaming
+  minecraft:
+    container_name: minecraft-creative
+    image: itzg/minecraft-bedrock-server
+    restart: always
+    ports:
+      - 19132:19132/udp
+    volumes:
+      - ${USERDIR}/docker/minecraft-creative:/data
+    environment:
+      EULA: "TRUE"
+      GAMEMODE: "creative"
+      SERVER_NAME: "Hulks & Llamas Oh My"
+      TZ: America/Los_Angeles
+    stdin_open: true
+    tty: true
+  minecraft2:
+    container_name: minecraft-survival
+    image: itzg/minecraft-bedrock-server
+    restart: always
+    ports:
+      - 19130:19130/udp
+    volumes:
+      - ${USERDIR}/docker/minecraft-survival:/data
+    environment:
+      EULA: "TRUE"
+      GAMEMODE: "survival"
+      SERVER_NAME: "Survival Challenge"
+      SERVER_PORT: 19130
+      #DIFFICULTY: "normal"
+      TZ: America/Los_Angeles
+    stdin_open: true
+    tty: true
+

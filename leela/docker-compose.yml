@@ -1,0 +1,101 @@
+version: "3.3"
+services: 
+# Admin Tools
+  portainer:
+    image: portainer/portainer
+    container_name: portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${USERDIR}/docker/portainer/data:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  watchtower:
+    container_name: watchtower
+    restart: unless-stopped
+    image: v2tec/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 0 4 * * *" --cleanup
+  unifi-controller:
+    image: linuxserver/unifi-controller
+    container_name: unifi-controller
+    environment:
+      - UID=${PUID}
+      - GID=${PGID}
+      - TZ=${TZ}
+      - MEM_LIMIT=1024M #optional
+    volumes:
+      - ${USERDIR}/docker/unifi:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 3478:3478/udp
+      - 10001:10001/udp
+      - 8080:8080
+      - 8081:8081
+      - 8443:8443
+      - 8843:8843
+      - 8880:8880
+      - 6789:6789
+    restart: unless-stopped
+  heimdall:
+    image: linuxserver/heimdall
+    container_name: heimdall
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ${USERDIR}/docker/heimdall:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8078:80
+    restart: unless-stopped
+
+# Web Services
+  letsencrypt:
+    image: linuxserver/swag:latest
+    container_name: letsencrypt
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - URL=ourrobinsonhome.com
+      - SUBDOMAINS=wildcard
+      - VALIDATION=dns
+      - DNSPLUGIN=cloudflare #optional
+      - EMAIL=klrobinson@gmail.com #optional
+      - DHLEVEL=2048 #optional
+      - ONLY_SUBDOMAINS=false #optional
+      - EXTRA_DOMAINS=mc.media,mcmedia.media,mcmedia.tech,mediacowboy.tech,orh.wiki,gkhas.com
+      - STAGING=false #optional
+      
+    volumes:
+      - ${USERDIR}/docker/letsencrypt:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 443:443
+      - 80:80 #optional
+    restart: unless-stopped
+    depends_on:
+      - portainer
+      - unifi-controller
+  authelia:
+    image: authelia/authelia
+    container_name: authelia
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    ports:
+      - 9091:9091
+    volumes:
+      - ${USERDIR}/docker/authelia:/config
+    restart: unless-stopped

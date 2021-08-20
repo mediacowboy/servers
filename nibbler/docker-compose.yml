@@ -1,0 +1,148 @@
+version: "3.6"
+services: 
+# Admin Tools
+  portainer:
+    image: portainer/portainer
+    container_name: portainer
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${USERDIR}/docker/portainer/data:/data
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  watchtower:
+    container_name: watchtower
+    restart: unless-stopped
+    image: v2tec/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --schedule "0 0 4 * * *" --cleanup
+  letsencrypt:
+    image: linuxserver/swag:latest
+    container_name: letsencrypt
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - URL=orh.casa
+      - SUBDOMAINS=wildcard
+      - VALIDATION=dns
+      - DNSPLUGIN=cloudflare #optional
+      - EMAIL=klrobinson@gmail.com #optional
+      - DHLEVEL=2048 #optional
+      - ONLY_SUBDOMAINS=false #optional
+      - STAGING=false #optional
+    volumes:
+      - ${USERDIR}/docker/letsencrypt:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 443:443
+      - 80:80 #optional
+    restart: unless-stopped
+    depends_on:
+      - portainer     
+      - home-assistant
+# Home Automation
+  home-assistant:
+    image: "homeassistant/home-assistant"
+    container_name: "home-assistant"
+    restart: unless-stopped
+    volumes:
+      - ${USERDIR}/docker/home-assistant:/config
+      - "/mnt/media:/media"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    network_mode: host
+    devices:
+      - '/dev/ttyUSB1:/dev/ttyUSB1'
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ} 
+    depends_on:
+      - mqtt
+      - influxdb
+      - zjs
+  zjs:
+    container_name: zjs
+    image: kpine/zwave-js-server:latest
+    restart: unless-stopped
+    environment:
+      NETWORK_KEY: "8A81D69D878A42A8BE44E262911D29F8"
+      LOGTOFILE: "true"
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
+    devices:
+      - '/dev/serial/by-id/usb-Silicon_Labs_HubZ_Smart_Home_Controller_C0F00B78-if00-port0:/dev/zwave'
+    volumes:
+      - ${USERDIR}/docker/z-wave-js/cache:/cache
+      - ${USERDIR}/docker/z-wave-js/logs:/logs
+    ports:
+      - '3000:3000'
+  influxdb:
+    image: influxdb:latest
+    container_name: influxdb
+    ports:
+      - 3001:8083
+      - 3002:8086
+    volumes:
+      - ${USERDIR}/docker/influxdb:/var/lib/influxdb
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config /etc/influxdb/influxdb.conf
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - 3004:3000
+    volumes:
+      - ${USERDIR}/docker/grafana:/var/lib/grafana
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: --config /etc/grafana/grafana.ini
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+  mqtt:
+    image: "eclipse-mosquitto"
+    container_name: "mqtt"
+    restart: always
+    volumes:
+      - ${USERDIR}/docker/mqtt/mosquitto.conf:/mosquitto/mosquitto.conf
+      - ${USERDIR}/docker/mqtt/log:/mosquitto/log
+      - ${USERDIR}/docker/mqtt/data:/mosquitto/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "1883:1883"
+      - "9001:9001" 
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ} 
+  esphome:
+    image: esphome/esphome
+    container_name: esphome
+    volumes:
+      - ${USERDIR}/docker/esphome:/config
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    network_mode: host
+    restart: always
+    

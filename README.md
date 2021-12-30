@@ -1,6 +1,7 @@
 # Home Servers
 I run six different server's. The specs of each server are listed below and a the services ran on each server can be found within the corresponding folder. Most the services are ran as docker containers and my docker compose files are included in the server folder.
 
+## Server Spec's
 * [Leela](leela/README.md)
   * Intel NUC 10 BXNUC10i3FNHN1
   * Crucial 16GB (2 x 8GB) 260-Pin DDR4 SO-DIMM DDR4 2666

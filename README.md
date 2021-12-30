@@ -1,5 +1,5 @@
 # Home Servers
-I run six different server's
+I run six different server's. The specs of each server are listed below and a the services ran on each server can be found within the corresponding folder. Most the services are ran as docker containers and my docker compose files are included in the server folder.
 
 * Leela
   * Intel NUC 10 BXNUC10i3FNHN1

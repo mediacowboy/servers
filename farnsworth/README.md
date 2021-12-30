@@ -1,4 +1,4 @@
-**Used for PI-Hole and Unbound
+# Used for PI-Hole and Unbound
 
 Setup using this video: https://www.youtube.com/watch?v=FnFtWsZ8IP0&t=944s&ab_channel=CraftComputing
 

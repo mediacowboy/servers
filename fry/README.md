@@ -1,1 +1,1 @@
-Used to host a personal MiceCraft Server and plugings
+Will be used to host a personal MiceCraft Server and plugings

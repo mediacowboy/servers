@@ -7,10 +7,6 @@ Nibber is used for home automation. It run's the following docker containers:
 4. Grafana
 5. MQTT
 6. ESP Home
-
-Extra Container:
-1. Portainer - more manage the containers outside of CLI
-2. SWAG - NGINX Container for reverse proxying
-
+7. Genie (*Formerly Almond*) - Privacy Based Voice Assistant
 
 

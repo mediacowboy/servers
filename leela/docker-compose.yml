@@ -15,13 +15,6 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-  watchtower:
-    container_name: watchtower
-    restart: unless-stopped
-    image: v2tec/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --schedule "0 0 4 * * *" --cleanup
   unifi-controller:
     image: linuxserver/unifi-controller
     container_name: unifi-controller
@@ -75,8 +68,7 @@ services:
       - DHLEVEL=2048 #optional
       - ONLY_SUBDOMAINS=false #optional
       - EXTRA_DOMAINS=mc.media,mcmedia.media,mcmedia.tech,mediacowboy.tech,orh.wiki,gkhas.com
-      - STAGING=false #optional
-      
+      - STAGING=false #optional 
     volumes:
       - ${USERDIR}/docker/letsencrypt:/config
       - /var/run/docker.sock:/var/run/docker.sock:ro

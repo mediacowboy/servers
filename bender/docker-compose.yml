@@ -1,82 +1,20 @@
 version: "3.6"
 services: 
 # Admin Tools
-  portainer:
-    image: portainer/portainer
-    container_name: portainer
+  portainer-agent:
+    image: portainer/agent
+    container_name: portainer-agent
     restart: unless-stopped
     command: -H unix:///var/run/docker.sock
     ports:
-      - "9000:9000"
+      - "9001:9001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${USERDIR}/docker/portainer/data:/data
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-  watchtower:
-    container_name: watchtower
-    restart: unless-stopped
-    image: v2tec/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --schedule "0 0 4 * * *" --cleanup
-  heimdall:
-    image: linuxserver/heimdall
-    container_name: heimdall
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ${USERDIR}/docker/heimdall:/config
-      - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - 8078:80
-    restart: unless-stopped
-
-# Web Services
-  letsencrypt:
-    image: linuxserver/swag:latest
-    container_name: letsencrypt
-    cap_add:
-      - NET_ADMIN
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-      - URL=orh.media
-      - SUBDOMAINS=wildcard
-      - VALIDATION=dns
-      - DNSPLUGIN=cloudflare #optional
-      - EMAIL=klrobinson@gmail.com #optional
-      - DHLEVEL=2048 #optional
-      - ONLY_SUBDOMAINS=false #optional
-      # - EXTRA_DOMAINS=mc.media,mcmedia.media,mcmedia.tech,mediacowboy.tech,orh.wiki
-      - STAGING=false #optional
-    volumes:
-      - ${USERDIR}/docker/letsencrypt:/config
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - 443:443
-      - 80:80 #optional
-    restart: unless-stopped
-    depends_on:
-      - portainer
-      - emby
-  authelia:
-    image: authelia/authelia
-    container_name: authelia
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    ports:
-      - 9091:9091
-    volumes:
-      - ${USERDIR}/docker/authelia:/config
-    restart: unless-stopped
 # Media Server
   emby:
     image: emby/embyserver:latest
@@ -96,6 +34,15 @@ services:
       - GID=${PGID}
       - GIDLIST=44
       - TZ=${TZ}
+  audiobookshelf:
+    container_name: "bookshelf"
+    image: advplyr/audiobookshelf
+    ports:
+      - 8097:80
+    volumes:
+      - /mnt/media/Audible Books:/audiobooks
+      - ${USERDIR}/docker/bookshelf/metadata:/metadata
+      - ${USERDIR}/docker/bookshelf:/config
   # emby-beta:
     # image: "emby/embyserver:beta"
     # container_name: "emby-beta"
@@ -260,7 +207,7 @@ services:
       #Backup
       - /mnt/misc/backups/arrs/Readarr:/Backup
     ports:
-      - 8092:8787
+      - 8075:8787
     restart: unless-stopped
   prowlarr:
     image: ghcr.io/linuxserver/prowlarr:develop
@@ -274,8 +221,9 @@ services:
       #Backup
       - /mnt/misc/backups/arrs/Prowlarr:/Backup
     ports:
-      - 8093:9696
+      - 8071:9696
     restart: unless-stopped
+#Misc downloading software
   ombi:
     image: "linuxserver/ombi:latest"
     container_name: "ombi"
@@ -283,56 +231,36 @@ services:
       - ${USERDIR}/docker/ombi:/config
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - 8076:3579 
+      - 8090:3579 
     restart: unless-stopped
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-  wiki:
-    image: "mazzolino/tiddlywiki"
-    container_name: "tiddlywiki"
-    restart: unless-stopped
-    volumes:
-      - ${USERDIR}/docker/tiddlywiki:/var/lib/tiddlywiki
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - "8091:8080"
+  podgrab:
+    image: akhilrex/podgrab
+    container_name: podgrab
     environment:
+      - CHECK_FREQUENCY=240
+     # - PASSWORD=password     ## Uncomment to enable basic authentication, username = podgrab
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ} 
-# Gaming
-  minecraft:
-    container_name: minecraft-creative
-    image: itzg/minecraft-bedrock-server
-    restart: always
-    ports:
-      - 19132:19132/udp
     volumes:
-      - ${USERDIR}/docker/minecraft-creative:/data
-    environment:
-      EULA: "TRUE"
-      GAMEMODE: "creative"
-      SERVER_NAME: "Hulks & Llamas Oh My"
-      TZ: America/Los_Angeles
-    stdin_open: true
-    tty: true
-  minecraft2:
-    container_name: minecraft-survival
-    image: itzg/minecraft-bedrock-server
-    restart: always
+      - ${USERDIR}/docker/podgrab:/config
+      - /mnt/media/Podcast:/assets
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
-      - 19130:19130/udp
+      - 8091:8080
+    restart: unless-stopped
+  metube:
+    image: alexta69/metube
+    container_name: metube
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - 8092:8081
     volumes:
-      - ${USERDIR}/docker/minecraft-survival:/data
+      - /mnt/misc/downloads/YouTube:/downloads    
     environment:
-      EULA: "TRUE"
-      GAMEMODE: "survival"
-      SERVER_NAME: "Survival Challenge"
-      SERVER_PORT: 19130
-      #DIFFICULTY: "normal"
-      TZ: America/Los_Angeles
-    stdin_open: true
-    tty: true
-
+      - URL_PREFIX=/metube

@@ -28,7 +28,7 @@ I run six different server's. The specs of each server are listed below and the 
   * **External Enclosure** (USB3 2-Bay)*Used for parity
     - 2x Western Digital 10TB (WDC WD101EFAX-68LDBN0)
 * [Flexo](flexo/README.md)
-  * Raspberry Pi 4 Model 8 4GB
+  * Raspberry Pi 4 Model B 4GB
   * Case: QUAD SATA HAT KIT for your Raspberry Pi 4
   * Hard Drives: 4x Seagate 2TB BarraCuda 5400 RPM
 * [Farnsworth](farnsworth/README.md)
